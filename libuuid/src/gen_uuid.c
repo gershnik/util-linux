@@ -131,8 +131,21 @@ static int getuid (void)
 static int get_node_id(unsigned char *node_id)
 {
 #ifdef HAVE_NET_IF_H
+
+#ifdef SIOCGLIFCONF
+#define xifreq lifreq
+#define xifr_name lifr_name
+#define xifr_addr lifr_addr
+#define SIOCGIFCONF_IOCTL SIOCGLIFCONF
+#else
+#define xifreq ifreq
+#define xifr_name ifr_name
+#define xifr_addr ifr_addr
+#define SIOCGIFCONF_IOCTL SIOCGIFCONF
+#endif
+
 	int		sd;
-	struct ifreq	ifr, *ifrp;
+	struct xifreq	ifr, *ifrp;
 	struct ifconf	ifc;
 	char buf[1024];
 	int		n, i;
@@ -148,10 +161,10 @@ static int get_node_id(unsigned char *node_id)
  * just sizeof(struct ifreq)
  */
 #ifdef HAVE_SA_LEN
-#define ifreq_size(i) max(sizeof(struct ifreq),\
-     sizeof((i).ifr_name)+(i).ifr_addr.sa_len)
+#define ifreq_size(i) max(sizeof(struct xifreq),\
+     sizeof((i).xifr_name)+(i).xifr_addr.sa_len)
 #else
-#define ifreq_size(i) sizeof(struct ifreq)
+#define ifreq_size(i) sizeof(struct xifreq)
 #endif /* HAVE_SA_LEN */
 
 	sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -161,14 +174,19 @@ static int get_node_id(unsigned char *node_id)
 	memset(buf, 0, sizeof(buf));
 	ifc.ifc_len = sizeof(buf);
 	ifc.ifc_buf = buf;
-	if (ioctl (sd, SIOCGIFCONF, (char *)&ifc) < 0) {
+	if (ioctl (sd, SIOCGIFCONF_IOCTL, (char *)&ifc) < 0) {
 		close(sd);
 		return -1;
 	}
 	n = ifc.ifc_len;
 	for (i = 0; i < n; i+= ifreq_size(*ifrp) ) {
-		ifrp = (struct ifreq *)((char *) ifc.ifc_buf+i);
-		strncpy(ifr.ifr_name, ifrp->ifr_name, IFNAMSIZ);
+		ifrp = (struct xifreq *)((char *) ifc.ifc_buf+i);
+		strncpy(ifr.xifr_name, ifrp->xifr_name, IFNAMSIZ);
+#ifdef SIOCGLIFHWADDR
+		if (ioctl(sd, SIOCGLIFHWADDR, &ifr) < 0)
+			continue;
+		a = (unsigned char *) ((struct sockaddr *)&ifr.lifr_addr)->sa_data;
+#else
 #ifdef SIOCGIFHWADDR
 		if (ioctl(sd, SIOCGIFHWADDR, &ifr) < 0)
 			continue;
@@ -194,6 +212,7 @@ static int get_node_id(unsigned char *node_id)
 #endif /* HAVE_NET_IF_DL_H */
 #endif /* SIOCGENADDR */
 #endif /* SIOCGIFHWADDR */
+#endif /* SIOCGLIFHWADDR */
 		if (a == NULL || (!a[0] && !a[1] && !a[2] && !a[3] && !a[4] && !a[5]))
 			continue;
 		if (node_id) {
