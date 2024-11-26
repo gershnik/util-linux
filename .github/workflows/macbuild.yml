@@ -25,6 +25,9 @@ jobs:
     steps:
       - name: Repository checkout
         uses: actions/checkout@v4
+      - name: Mac Setup
+        run: |
+            brew install autoconf automake libtool bison flex
       - name: Configure
         run: .github/workflows/cibuild.sh CONFIGURE
       - name: Make
