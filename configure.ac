@@ -2256,6 +2256,7 @@ AM_CONDITIONAL([BUILD_SCRIPTLIVE], [test "x$build_scriptlive" = xyes])
 
 
 UL_BUILD_INIT([bits], [yes])
+UL_EXCLUDE_ARCH([bits], [*darwin*])
 AM_CONDITIONAL([BUILD_BITS], [test "x$build_bits" = xyes])
 
 UL_BUILD_INIT([col], [check])

@@ -22,6 +22,18 @@ elif [[ "$COMPILER" == gcc ]]; then
     CXX="g++${COMPILER_VERSION:+-$COMPILER_VERSION}"
 fi
 
+if [ "$(uname)" == "Darwin" ]; then
+    LDFLAGS+=("-Wl,-not_for_dyld_shared_cache")
+fi
+
+function num_proc {
+    if [ "$(uname)" == "Darwin" ]; then
+        sysctl -n hw.physicalcpu
+    else
+        nproc
+    fi
+}
+
 function coverity_install_script {
     set +x # This is supposed to hide COVERITY_SCAN_TOKEN
     local platform=$(uname)
@@ -85,6 +97,14 @@ for phase in "${PHASES[@]}"; do
             --enable-all-programs
         )
 
+        if [ "$(uname)" == "Darwin" ]; then
+            opts+=(
+                --disable-fdisks
+                --disable-liblastlog2
+                enable_bits=no
+            )
+        fi
+
         if [[ "$COVERAGE" == "yes" ]]; then
             opts+=(--enable-coverage)
         fi
@@ -93,7 +113,7 @@ for phase in "${PHASES[@]}"; do
             opts+=(--enable-asan --enable-ubsan)
             CFLAGS+=(-fno-omit-frame-pointer)
             CXXFLAGS+=(-fno-omit-frame-pointer)
-        else
+        elif [ "$(uname)" != "Darwin" ]; then
             opts+=(--enable-werror)
         fi
 
@@ -118,8 +138,8 @@ for phase in "${PHASES[@]}"; do
         CC="$CC" CXX="$CXX" CFLAGS="${CFLAGS[@]}" CXXFLAGS="${CXXFLAGS[@]}" LDFLAGS="${LDFLAGS[@]}" ./configure "${opts[@]}"
         ;;
     MAKE)
-        make -j"$(nproc)"
-        make -j"$(nproc)" check-programs
+        make -j"$(num_proc)"
+        make -j"$(num_proc)" check-programs
 
         untracked_files="$(git ls-files --others --exclude-standard)"
         if [ -n "$untracked_files" ]; then
