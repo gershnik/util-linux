@@ -1,4 +1,4 @@
-name: Build test
+name: Mac Build
 on:
   pull_request:
     paths-ignore:
@@ -28,6 +28,7 @@ jobs:
       - name: Mac Setup
         run: |
             brew install autoconf automake libtool bison flex
+            echo "/opt/homebrew/opt/libtool/libexec/gnubin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/flex/bin" >> $GITHUB_PATH
       - name: Configure
         run: .github/workflows/cibuild.sh CONFIGURE
       - name: Make
